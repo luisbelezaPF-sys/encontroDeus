@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { registrarUsuario, loginUsuario } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Cross, Mail, Lock, User, Loader2 } from 'lucide-react'
-import { addDays } from 'date-fns'
 
 interface AuthFormProps {
   onSuccess?: () => void
@@ -31,46 +30,24 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
     const nome = formData.get('nome') as string
 
     try {
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            nome
-          }
-        }
-      })
-
-      if (authError) throw authError
-
-      if (authData.user) {
-        // Criar metadata do usuário com trial de 7 dias
-        const dataInicio = new Date()
-        const dataExpiracao = addDays(dataInicio, 7)
-
-        const { error: metaError } = await supabase.from('users_meta').insert({
-          id: authData.user.id,
-          email,
-          nome,
-          status_assinatura: 'trial',
-          data_inicio: dataInicio.toISOString(),
-          data_expiracao: dataExpiracao.toISOString(),
-          progresso_biblico: 0
-        })
-
-        if (metaError) {
-          console.error('Erro ao criar metadata:', metaError)
-        }
-
-        setMessage('Conta criada com sucesso! Você tem 7 dias de acesso gratuito ao conteúdo premium.')
+      console.log('📝 Iniciando cadastro:', { email, nome })
+      
+      const result = await registrarUsuario(email, password, nome)
+      
+      if (result.success) {
+        console.log('✅ Cadastro realizado com sucesso')
+        setMessage(result.message || 'Conta criada com sucesso!')
         
         if (onSuccess) {
           setTimeout(onSuccess, 2000)
         }
+      } else {
+        console.error('❌ Erro no cadastro:', result.error)
+        setError(result.error || 'Erro ao criar conta')
       }
     } catch (error: any) {
-      setError(error.message || 'Erro ao criar conta')
+      console.error('❌ Erro inesperado no cadastro:', error)
+      setError(error.message || 'Erro inesperado ao criar conta')
     } finally {
       setLoading(false)
     }
@@ -87,20 +64,24 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
     const password = formData.get('password') as string
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-
-      if (error) throw error
-
-      setMessage('Login realizado com sucesso!')
+      console.log('🔐 Iniciando login:', email)
       
-      if (onSuccess) {
-        setTimeout(onSuccess, 1000)
+      const result = await loginUsuario(email, password)
+      
+      if (result.success) {
+        console.log('✅ Login realizado com sucesso')
+        setMessage(result.message || 'Login realizado com sucesso!')
+        
+        if (onSuccess) {
+          setTimeout(onSuccess, 1000)
+        }
+      } else {
+        console.error('❌ Erro no login:', result.error)
+        setError(result.error || 'Erro ao fazer login')
       }
     } catch (error: any) {
-      setError(error.message || 'Erro ao fazer login')
+      console.error('❌ Erro inesperado no login:', error)
+      setError(error.message || 'Erro inesperado ao fazer login')
     } finally {
       setLoading(false)
     }
@@ -139,6 +120,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                       placeholder="seu@email.com"
                       className="pl-10"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -154,6 +136,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                       placeholder="Sua senha"
                       className="pl-10"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -188,6 +171,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                       placeholder="Seu nome"
                       className="pl-10"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -203,6 +187,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                       placeholder="seu@email.com"
                       className="pl-10"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -219,6 +204,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
                       className="pl-10"
                       minLength={6}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>

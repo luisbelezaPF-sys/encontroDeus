@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { verificarSessao, obterDadosUsuario } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -10,38 +11,67 @@ import AuthForm from '@/components/AuthForm'
 import PainelUsuario from '@/components/PainelUsuario'
 import PopupCobranca from '@/components/PopupCobranca'
 import { verificarStatusAssinatura } from '@/lib/subscription'
+import { atualizarConteudoDiario } from '@/lib/bible-api'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
+  const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showAuth, setShowAuth] = useState(false)
   const [statusAssinatura, setStatusAssinatura] = useState<any>(null)
   const [progressoBiblico, setProgressoBiblico] = useState(0)
+  const [conteudoDiario, setConteudoDiario] = useState<any>(null)
+
+  // Função para carregar conteúdo diário
+  const carregarConteudoDiario = async (userId?: string) => {
+    try {
+      console.log('📖 Carregando conteúdo diário...')
+      const conteudo = await atualizarConteudoDiario(userId)
+      
+      if (!conteudo) {
+        console.error('❌ Falha ao carregar conteúdo. Verifique API_URL ou conexão.')
+        return null
+      }
+      
+      console.log('✅ Conteúdo diário carregado:', conteudo)
+      setConteudoDiario(conteudo)
+      return conteudo
+    } catch (error) {
+      console.error('❌ Erro ao carregar conteúdo diário:', error)
+      return null
+    }
+  }
 
   useEffect(() => {
     // Verificar usuário logado
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      console.log('🔍 Verificando sessão do usuário...')
       
-      if (user) {
-        console.log('🔍 Verificando status da assinatura para usuário:', user.id)
+      const sessaoResult = await verificarSessao()
+      
+      if (sessaoResult.success && sessaoResult.user) {
+        console.log('✅ Usuário logado encontrado:', sessaoResult.user.id)
+        
+        setUser(sessaoResult.user)
+        setUserData(sessaoResult.userData)
         
         // Verificar status da assinatura
-        const status = await verificarStatusAssinatura(user.id)
+        console.log('🔍 Verificando status da assinatura para usuário:', sessaoResult.user.id)
+        const status = await verificarStatusAssinatura(sessaoResult.user.id)
         console.log('📊 Status da assinatura:', status)
         setStatusAssinatura(status)
         
-        // Buscar progresso bíblico
-        const { data: userMeta } = await supabase
-          .from('users_meta')
-          .select('progresso_biblico')
-          .eq('id', user.id)
-          .single()
+        // Carregar conteúdo diário
+        await carregarConteudoDiario(sessaoResult.user.id)
         
-        if (userMeta) {
-          setProgressoBiblico(userMeta.progresso_biblico || 0)
+        // Buscar progresso bíblico
+        if (sessaoResult.userData) {
+          setProgressoBiblico(sessaoResult.userData.progresso_biblico || 0)
         }
+      } else {
+        console.log('❌ Nenhum usuário logado')
+        // Carregar conteúdo diário mesmo sem usuário (para preview)
+        await carregarConteudoDiario()
       }
       
       setLoading(false)
@@ -51,14 +81,36 @@ export default function Home() {
 
     // Listener para mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user || null)
+      console.log('🔄 Mudança de autenticação:', event)
+      
       if (session?.user) {
-        console.log('🔄 Mudança de auth - verificando status para:', session.user.id)
+        console.log('✅ Usuário logado via listener:', session.user.id)
+        
+        setUser(session.user)
+        
+        // Buscar dados completos do usuário
+        const dadosUsuario = await obterDadosUsuario(session.user.id)
+        setUserData(dadosUsuario)
+        
+        // Verificar status da assinatura
         const status = await verificarStatusAssinatura(session.user.id)
         console.log('📊 Novo status da assinatura:', status)
         setStatusAssinatura(status)
+        
+        // Carregar conteúdo diário
+        await carregarConteudoDiario(session.user.id)
+        
+        if (dadosUsuario) {
+          setProgressoBiblico(dadosUsuario.progresso_biblico || 0)
+        }
       } else {
+        console.log('❌ Usuário deslogado via listener')
+        setUser(null)
+        setUserData(null)
         setStatusAssinatura(null)
+        setProgressoBiblico(0)
+        // Ainda carregar conteúdo para preview
+        await carregarConteudoDiario()
       }
     })
 
@@ -83,7 +135,7 @@ export default function Home() {
   }
 
   // Se usuário está logado, mostrar painel
-  if (user) {
+  if (user && userData) {
     console.log('👤 Usuário logado, mostrando painel')
     console.log('🔐 Status assinatura atual:', statusAssinatura)
     console.log('✅ Pode acessar premium?', statusAssinatura?.podeAcessarPremium)
@@ -91,7 +143,12 @@ export default function Home() {
     
     return (
       <>
-        <PainelUsuario user={user} statusAssinatura={statusAssinatura} />
+        <PainelUsuario 
+          user={user} 
+          userData={userData}
+          statusAssinatura={statusAssinatura} 
+          conteudoDiario={conteudoDiario}
+        />
         {statusAssinatura?.mostrarPopup && (
           <PopupCobranca 
             mensagem={statusAssinatura.mensagemPopup}
@@ -153,6 +210,31 @@ export default function Home() {
               Reflexões profundas, orações guiadas e versículos inspiradores para fortalecer sua fé todos os dias
             </p>
           </div>
+
+          {/* Preview do Conteúdo Diário */}
+          {conteudoDiario && (
+            <Card className="max-w-2xl mx-auto mb-8 bg-white/70 backdrop-blur-sm border-blue-100">
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-800 flex items-center gap-2 justify-center">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                  Versículo do Dia
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <blockquote className="text-gray-700 italic mb-2">
+                  "{conteudoDiario.versiculo.texto}"
+                </blockquote>
+                <p className="text-sm text-blue-600 font-medium">
+                  {conteudoDiario.versiculo.referencia}
+                </p>
+                <div className="mt-4 p-3 bg-amber-50 rounded-lg">
+                  <p className="text-sm text-amber-700">
+                    🔒 Faça login para acessar reflexões profundas e conteúdo premium
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">

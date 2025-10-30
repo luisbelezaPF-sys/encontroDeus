@@ -29,8 +29,7 @@ export async function verificarStatusAssinatura(userId: string): Promise<StatusA
         nome: 'Usuário',
         status_assinatura: 'trial',
         data_inicio: dataInicio.toISOString(),
-        data_expiracao: dataExpiracao.toISOString(),
-        progresso_biblico: 0
+        data_expiracao: dataExpiracao.toISOString()
       })
 
       return {
@@ -224,8 +223,7 @@ export async function criarUsuarioAdmin() {
       role: 'admin',
       status_assinatura: 'ativo',
       data_inicio: new Date().toISOString(),
-      data_expiracao: addDays(new Date(), 365).toISOString(), // 1 ano
-      progresso_biblico: 100
+      data_expiracao: addDays(new Date(), 365).toISOString() // 1 ano
     }).select().single()
 
     if (metaError) {

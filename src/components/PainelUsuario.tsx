@@ -2,64 +2,65 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { logoutUsuario } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Cross, BookOpen, Heart, Users, Star, LogOut, Calendar, Crown, Share2 } from 'lucide-react'
+import { Cross, BookOpen, Heart, Users, Star, LogOut, Calendar, Crown, Share2, Loader2 } from 'lucide-react'
 import VersiculoDoDia from '@/components/VersiculoDoDia'
 import BotaoCompartilharWhatsApp from '@/components/BotaoCompartilharWhatsApp'
-import { atualizarConteudoDiario } from '@/lib/bible-api'
 
 interface PainelUsuarioProps {
   user: any
+  userData: any
   statusAssinatura: any
+  conteudoDiario: any
 }
 
-export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioProps) {
-  const [userMeta, setUserMeta] = useState<any>(null)
-  const [conteudoDiario, setConteudoDiario] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const carregarDados = async () => {
-      try {
-        // Buscar dados do usuário
-        const { data: meta } = await supabase
-          .from('users_meta')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-
-        setUserMeta(meta)
-
-        // Carregar conteúdo diário
-        const conteudo = await atualizarConteudoDiario(user.id)
-        setConteudoDiario(conteudo)
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    carregarDados()
-  }, [user.id])
+export default function PainelUsuario({ user, userData, statusAssinatura, conteudoDiario }: PainelUsuarioProps) {
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    setLoading(true)
+    setMessage('')
+    
+    try {
+      console.log('🚪 Iniciando logout...')
+      const result = await logoutUsuario()
+      
+      if (result.success) {
+        console.log('✅ Logout realizado com sucesso')
+        setMessage(result.message || 'Logout realizado com sucesso!')
+        
+        // Aguardar um pouco antes de recarregar para mostrar a mensagem
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      } else {
+        console.error('❌ Erro no logout:', result.error)
+        setMessage(result.error || 'Erro ao fazer logout')
+      }
+    } catch (error) {
+      console.error('❌ Erro inesperado no logout:', error)
+      setMessage('Erro inesperado ao fazer logout')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAssinarAgora = () => {
+    console.log('🔗 Redirecionando para PagBank')
     window.open('https://pag.ae/81aj-zE2K', '_blank')
   }
 
-  if (loading) {
+  if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando seu painel...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Carregando dados do usuário...</p>
         </div>
       </div>
     )
@@ -67,10 +68,16 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
 
   const isPremium = statusAssinatura?.podeAcessarPremium
   const diasRestantes = statusAssinatura?.diasRestantes || 0
+  const nomeUsuario = userData?.nome || user?.user_metadata?.nome || 'Usuário'
+
+  // Calcular progresso baseado em dias de uso (simulado)
+  const diasDeUso = userData?.created_at ? 
+    Math.floor((new Date().getTime() - new Date(userData.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0
+  const progressoBiblico = Math.min(100, diasDeUso * 5) // 5% por dia, máximo 100%
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50">
-      {/* Header */}
+      {/* Header com nome do usuário */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-blue-100 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -80,7 +87,9 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">Encontro Diário</h1>
-                <p className="text-sm text-gray-600">Olá, {userMeta?.nome || 'Usuário'}!</p>
+                <p className="text-sm text-gray-600">
+                  Bem-vindo, {nomeUsuario}! 👋
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -100,9 +109,14 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                 variant="outline" 
                 size="sm"
                 onClick={handleLogout}
+                disabled={loading}
                 className="border-red-200 text-red-700 hover:bg-red-50"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                {loading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <LogOut className="w-4 h-4 mr-2" />
+                )}
                 Sair
               </Button>
             </div>
@@ -110,15 +124,24 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
         </div>
       </header>
 
+      {/* Mensagem de feedback */}
+      {message && (
+        <div className="container mx-auto px-4 pt-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-green-700 text-center">{message}</p>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Coluna Principal */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Boas-vindas */}
+            {/* Boas-vindas personalizadas */}
             <Card className="bg-gradient-to-r from-blue-50 to-amber-50 border-blue-100">
               <CardHeader>
                 <CardTitle className="text-2xl text-gray-800">
-                  Bem-vindo ao seu encontro diário! 🙏
+                  Olá, {nomeUsuario}! 🙏
                 </CardTitle>
                 <CardDescription className="text-lg">
                   Que este dia seja abençoado com a presença de Deus em sua vida.
@@ -133,7 +156,7 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
               isPremium={isPremium}
             />
 
-            {/* Área Premium */}
+            {/* Área Premium ou CTA */}
             {isPremium ? (
               <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200">
                 <CardHeader>
@@ -179,6 +202,29 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* Personagem Bíblico do Dia */}
+                  {conteudoDiario?.personagem && (
+                    <Card className="bg-white/80">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Users className="w-5 h-5 text-green-500" />
+                          Personagem do Dia: {conteudoDiario.personagem.nome}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {conteudoDiario.personagem.descricao}
+                        </p>
+                        <p className="text-sm text-gray-700 mb-3">
+                          {conteudoDiario.personagem.historia}
+                        </p>
+                        <blockquote className="text-sm italic text-blue-600 border-l-4 border-blue-200 pl-3">
+                          {conteudoDiario.personagem.versiculo_relacionado}
+                        </blockquote>
+                      </CardContent>
+                    </Card>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -226,18 +272,23 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Progresso Bíblico</span>
-                    <span>{userMeta?.progresso_biblico || 0}%</span>
+                    <span>{progressoBiblico}%</span>
                   </div>
-                  <Progress value={userMeta?.progresso_biblico || 0} className="h-2" />
+                  <Progress value={progressoBiblico} className="h-2" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div className="bg-blue-50 rounded-lg p-3">
-                    <p className="text-2xl font-bold text-blue-600">7</p>
-                    <p className="text-xs text-gray-600">Dias consecutivos</p>
+                    <p className="text-2xl font-bold text-blue-600">{diasRestantes > 0 ? diasRestantes : '∞'}</p>
+                    <p className="text-xs text-gray-600">
+                      {statusAssinatura?.status === 'trial' ? 'Dias restantes' : 
+                       statusAssinatura?.status === 'ativo' ? 'Premium ativo' : 'Dias ativos'}
+                    </p>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3">
-                    <p className="text-2xl font-bold text-green-600">15</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {Math.floor(progressoBiblico / 5)}
+                    </p>
                     <p className="text-xs text-gray-600">Versículos lidos</p>
                   </div>
                 </div>
@@ -257,7 +308,7 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                   Compartilhe sua jornada espiritual com amigos e familiares
                 </p>
                 <BotaoCompartilharWhatsApp 
-                  conteudo={conteudoDiario ? 
+                  conteudo={conteudoDiario?.versiculo ? 
                     `${conteudoDiario.versiculo.referencia}: ${conteudoDiario.versiculo.texto}` : 
                     "Venha fazer parte da sua jornada espiritual diária!"
                   }
@@ -272,6 +323,13 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                 <CardTitle className="text-lg">Status da Conta</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Usuário:</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {nomeUsuario}
+                  </span>
+                </div>
+                
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Plano:</span>
                   <Badge variant={isPremium ? "default" : "secondary"}>
@@ -292,8 +350,8 @@ export default function PainelUsuario({ user, statusAssinatura }: PainelUsuarioP
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Membro desde:</span>
                   <span className="text-sm text-gray-800">
-                    {userMeta?.created_at ? 
-                      new Date(userMeta.created_at).toLocaleDateString('pt-BR') : 
+                    {userData?.created_at ? 
+                      new Date(userData.created_at).toLocaleDateString('pt-BR') : 
                       'Hoje'
                     }
                   </span>
