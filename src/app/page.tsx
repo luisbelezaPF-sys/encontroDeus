@@ -25,8 +25,11 @@ export default function Home() {
       setUser(user)
       
       if (user) {
+        console.log('🔍 Verificando status da assinatura para usuário:', user.id)
+        
         // Verificar status da assinatura
         const status = await verificarStatusAssinatura(user.id)
+        console.log('📊 Status da assinatura:', status)
         setStatusAssinatura(status)
         
         // Buscar progresso bíblico
@@ -50,7 +53,9 @@ export default function Home() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user || null)
       if (session?.user) {
+        console.log('🔄 Mudança de auth - verificando status para:', session.user.id)
         const status = await verificarStatusAssinatura(session.user.id)
+        console.log('📊 Novo status da assinatura:', status)
         setStatusAssinatura(status)
       } else {
         setStatusAssinatura(null)
@@ -61,6 +66,7 @@ export default function Home() {
   }, [])
 
   const handleAssinarAgora = () => {
+    console.log('🔗 Redirecionando para PagBank')
     // Redirecionar para PagBank
     window.open('https://pag.ae/81aj-zE2K', '_blank')
   }
@@ -78,6 +84,11 @@ export default function Home() {
 
   // Se usuário está logado, mostrar painel
   if (user) {
+    console.log('👤 Usuário logado, mostrando painel')
+    console.log('🔐 Status assinatura atual:', statusAssinatura)
+    console.log('✅ Pode acessar premium?', statusAssinatura?.podeAcessarPremium)
+    console.log('🚨 Mostrar popup?', statusAssinatura?.mostrarPopup)
+    
     return (
       <>
         <PainelUsuario user={user} statusAssinatura={statusAssinatura} />
@@ -85,7 +96,10 @@ export default function Home() {
           <PopupCobranca 
             mensagem={statusAssinatura.mensagemPopup}
             onAssinar={handleAssinarAgora}
-            onFechar={() => setStatusAssinatura({...statusAssinatura, mostrarPopup: false})}
+            onFechar={() => {
+              console.log('❌ Fechando popup de cobrança')
+              setStatusAssinatura({...statusAssinatura, mostrarPopup: false})
+            }}
           />
         )}
       </>

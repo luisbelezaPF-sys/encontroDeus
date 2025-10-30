@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Heart, User, Share2, Star } from 'lucide-react'
+import { BookOpen, Heart, User, Share2, Star, Lock } from 'lucide-react'
 import { atualizarProgressoUsuario } from '@/lib/bible-api'
 import BotaoCompartilharWhatsApp from '@/components/BotaoCompartilharWhatsApp'
 
@@ -31,6 +31,10 @@ export default function VersiculoDoDia({ userId, conteudo, isPremium }: Versicul
     }
   }
 
+  const handleAssinarPremium = () => {
+    window.open('https://pag.ae/81aj-zE2K', '_blank')
+  }
+
   if (!conteudo) {
     return (
       <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
@@ -44,7 +48,7 @@ export default function VersiculoDoDia({ userId, conteudo, isPremium }: Versicul
 
   return (
     <div className="space-y-6">
-      {/* Versículo do Dia */}
+      {/* Versículo do Dia - SEMPRE VISÍVEL */}
       <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
@@ -88,62 +92,72 @@ export default function VersiculoDoDia({ userId, conteudo, isPremium }: Versicul
         </CardContent>
       </Card>
 
-      {/* Personagem Bíblico do Dia */}
+      {/* Personagem Bíblico do Dia - CONTROLE DE ACESSO */}
       <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
             <User className="w-6 h-6 text-green-600" />
             Personagem Bíblico do Dia
+            {!isPremium && <Lock className="w-4 h-4 text-amber-500 ml-2" />}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              {conteudo.personagem.nome}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {conteudo.personagem.descricao}
-            </p>
-            
-            {isPremium && conteudo.personagem.historia && (
-              <div className="bg-white/80 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                  <Star className="w-4 h-4 text-amber-500" />
-                  História Completa (Premium)
-                </h4>
-                <p className="text-sm text-gray-700 mb-3">
-                  {conteudo.personagem.historia}
-                </p>
-                {conteudo.personagem.versiculo_relacionado && (
-                  <div className="bg-amber-50 rounded p-3">
-                    <p className="text-sm text-amber-800 italic">
-                      {conteudo.personagem.versiculo_relacionado}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {!isPremium && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-700 mb-2">
-                  🔒 Desbloqueie a história completa de {conteudo.personagem.nome} com o Premium
-                </p>
-                <p className="text-xs text-amber-600">
-                  Inclui biografia detalhada e versículos relacionados
-                </p>
-              </div>
-            )}
-          </div>
+          {isPremium ? (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                {conteudo.personagem.nome}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {conteudo.personagem.descricao}
+              </p>
+              
+              {conteudo.personagem.historia && (
+                <div className="bg-white/80 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-500" />
+                    História Completa
+                  </h4>
+                  <p className="text-sm text-gray-700 mb-3">
+                    {conteudo.personagem.historia}
+                  </p>
+                  {conteudo.personagem.versiculo_relacionado && (
+                    <div className="bg-amber-50 rounded p-3">
+                      <p className="text-sm text-amber-800 italic">
+                        {conteudo.personagem.versiculo_relacionado}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6 text-center">
+              <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Conteúdo Premium Bloqueado
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Desbloqueie histórias completas dos personagens bíblicos, reflexões profundas e muito mais!
+              </p>
+              <Button 
+                onClick={handleAssinarPremium}
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Assinar Premium - R$ 9,90/mês
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Reflexão do Dia */}
+      {/* Reflexão do Dia - CONTROLE DE ACESSO */}
       <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
             <Heart className="w-6 h-6 text-red-500" />
             Reflexão do Dia
+            {!isPremium && <Lock className="w-4 h-4 text-amber-500 ml-2" />}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -170,8 +184,8 @@ export default function VersiculoDoDia({ userId, conteudo, isPremium }: Versicul
               </div>
             </div>
           ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
-              <Star className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6 text-center">
+              <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-800 mb-2">
                 Reflexões Profundas Premium
               </h3>
@@ -179,9 +193,69 @@ export default function VersiculoDoDia({ userId, conteudo, isPremium }: Versicul
                 Desbloqueie reflexões diárias personalizadas, orações guiadas e estudos bíblicos 
                 aprofundados para fortalecer sua jornada espiritual.
               </p>
-              <Button className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white">
+              <Button 
+                onClick={handleAssinarPremium}
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+              >
                 <Star className="w-4 h-4 mr-2" />
-                Assinar Premium
+                Assinar Premium - R$ 9,90/mês
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Oração Guiada - CONTROLE DE ACESSO */}
+      <Card className="bg-white/80 backdrop-blur-sm border-blue-100">
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center gap-2">
+            <Heart className="w-6 h-6 text-purple-500" />
+            Oração Guiada
+            {!isPremium && <Lock className="w-4 h-4 text-amber-500 ml-2" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isPremium ? (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Momento de Oração Pessoal
+              </h3>
+              <div className="space-y-4">
+                <div className="bg-white/80 rounded p-4">
+                  <h4 className="font-medium text-gray-800 mb-2">1. Gratidão</h4>
+                  <p className="text-sm text-gray-600">
+                    "Senhor, obrigado(a) por este novo dia e por todas as bênçãos em minha vida..."
+                  </p>
+                </div>
+                <div className="bg-white/80 rounded p-4">
+                  <h4 className="font-medium text-gray-800 mb-2">2. Pedidos</h4>
+                  <p className="text-sm text-gray-600">
+                    "Peço-Te sabedoria para as decisões de hoje e força para superar os desafios..."
+                  </p>
+                </div>
+                <div className="bg-white/80 rounded p-4">
+                  <h4 className="font-medium text-gray-800 mb-2">3. Intercessão</h4>
+                  <p className="text-sm text-gray-600">
+                    "Abençoa minha família, amigos e todos que precisam do Teu amor e cuidado..."
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6 text-center">
+              <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Orações Guiadas Premium
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Acesse orações estruturadas para diferentes momentos e necessidades da sua vida espiritual.
+              </p>
+              <Button 
+                onClick={handleAssinarPremium}
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Assinar Premium - R$ 9,90/mês
               </Button>
             </div>
           )}

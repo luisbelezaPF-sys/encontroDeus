@@ -46,7 +46,7 @@ export async function verificarStatusAssinatura(userId: string): Promise<StatusA
     const dataExpiracao = new Date(userMeta.data_expiracao)
     const diasRestantes = Math.max(0, Math.ceil((dataExpiracao.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24)))
 
-    // Verificar se o trial/assinatura expirou
+    // CORREÇÃO: Verificar se o trial/assinatura expirou
     const expirou = isAfter(agora, dataExpiracao)
     
     let podeAcessarPremium = false
@@ -55,30 +55,47 @@ export async function verificarStatusAssinatura(userId: string): Promise<StatusA
 
     switch (userMeta.status_assinatura) {
       case 'ativo':
+        // Premium ativo - sempre tem acesso
         podeAcessarPremium = true
         mostrarPopup = false
         break
         
       case 'trial':
         if (expirou) {
+          // Trial expirado - SEM acesso e COM popup
           podeAcessarPremium = false
           mostrarPopup = true
           mensagemPopup = 'Seu período gratuito de 7 dias terminou! Assine agora para continuar acessando o conteúdo premium.'
+          
+          // CORREÇÃO: Atualizar status para inativo quando trial expira
+          await supabase.from('users_meta').update({
+            status_assinatura: 'inativo'
+          }).eq('id', userId)
+          
         } else {
+          // Trial ativo - TEM acesso e SEM popup
           podeAcessarPremium = true
           mostrarPopup = false
         }
         break
         
       case 'inativo':
+        // Inativo - SEM acesso e COM popup
         podeAcessarPremium = false
         mostrarPopup = true
         mensagemPopup = 'Sua assinatura está inativa. Renove agora para acessar todo o conteúdo premium!'
         break
+        
+      default:
+        // Status desconhecido - tratar como inativo
+        podeAcessarPremium = false
+        mostrarPopup = true
+        mensagemPopup = 'Assine agora para acessar todo o conteúdo premium!'
+        break
     }
 
     return {
-      status: userMeta.status_assinatura,
+      status: expirou && userMeta.status_assinatura === 'trial' ? 'inativo' : userMeta.status_assinatura,
       dataExpiracao,
       diasRestantes,
       podeAcessarPremium,
@@ -88,13 +105,14 @@ export async function verificarStatusAssinatura(userId: string): Promise<StatusA
   } catch (error) {
     console.error('Erro ao verificar status da assinatura:', error)
     
-    // Retornar status padrão em caso de erro
+    // CORREÇÃO: Em caso de erro, retornar acesso negado por segurança
     return {
-      status: 'trial',
-      dataExpiracao: addDays(new Date(), 7),
-      diasRestantes: 7,
-      podeAcessarPremium: true,
-      mostrarPopup: false
+      status: 'inativo',
+      dataExpiracao: new Date(),
+      diasRestantes: 0,
+      podeAcessarPremium: false,
+      mostrarPopup: true,
+      mensagemPopup: 'Erro ao verificar assinatura. Tente fazer login novamente.'
     }
   }
 }
